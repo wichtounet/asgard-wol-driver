@@ -18,12 +18,14 @@ asgard::driver_connector driver;
 
 // The remote IDs
 int source_id = -1;
-int action_id = -1;
+int windows_action_id = -1;
+int wake_action_id = -1;
 
 void stop(){
     std::cout << "asgard:system: stop the driver" << std::endl;
 
-    asgard::unregister_action(driver, source_id, action_id);
+    asgard::unregister_action(driver, source_id, wake_action_id);
+    asgard::unregister_action(driver, source_id, windows_action_id);
     asgard::unregister_source(driver, source_id);
 
     // Unlink the client socket
@@ -53,7 +55,8 @@ int main(){
 
     // Register the source and actions
     source_id = asgard::register_source(driver, "wol");
-    action_id = asgard::register_action(driver, source_id, "SIMPLE", "windows"); //TODO This action will be removed
+    windows_action_id = asgard::register_action(driver, source_id, "SIMPLE", "windows"); //TODO This action will be removed
+    wake_action_id = asgard::register_action(driver, source_id, "STRING", "wake");
 
     // Listen for messages from the server
     while(true){
@@ -71,14 +74,26 @@ int main(){
             std::string action;
             message_ss >> action;
 
+            //TODO The action windows should be removed
             if(action == "windows"){
                 auto result = asgard::exec_command("wakeonlan BC:EE:7B:87:9D:61");
 
                 if(result.first){
                     std::cout << "wakeonlan failed(" << result.first << ") with result: \n" << result.second << std::endl;
                 }
-            } else if(action == "wake"){
-                //TODO Future generic action with parameter
+            }
+
+            if(action == "wake"){
+                std::string mac;
+                message_ss >> mac;
+
+                std::cout << "asgard:wol: waking " << mac << std::endl;
+
+                auto result = asgard::exec_command("wakeonlan " + mac);
+
+                if(result.first){
+                    std::cout << "wakeonlan failed(" << result.first << ") with result: \n" << result.second << std::endl;
+                }
             }
         }
     }
