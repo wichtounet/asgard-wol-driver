@@ -55,30 +55,33 @@ int main(){
 
     // Listen for messages from the server
     while(true){
-        auto bytes_received                   = recv(driver.socket_fd, driver.receive_buffer, asgard::buffer_size, 0);
-        driver.receive_buffer[bytes_received] = '\0';
+        if(asgard::receive_message(driver.socket_fd, driver.receive_buffer, asgard::buffer_size)){
+            std::string message(driver.receive_buffer);
+            std::stringstream message_ss(message);
 
-        std::string message(driver.receive_buffer);
-        std::stringstream message_ss(message);
+            std::string command;
+            message_ss >> command;
 
-        std::string command;
-        message_ss >> command;
+            if(command == "ACTION"){
+                std::string action;
+                message_ss >> action;
 
-        if(command == "ACTION"){
-            std::string action;
-            message_ss >> action;
+                if(action == "wake"){
+                    std::string mac;
+                    message_ss >> mac;
 
-            if(action == "wake"){
-                std::string mac;
-                message_ss >> mac;
+                    std::cout << "asgard:wol: waking " << mac << std::endl;
 
-                std::cout << "asgard:wol: waking " << mac << std::endl;
+                    auto result = asgard::exec_command("wakeonlan " + mac);
 
-                auto result = asgard::exec_command("wakeonlan " + mac);
-
-                if(result.first){
-                    std::cout << "wakeonlan failed(" << result.first << ") with result: \n" << result.second << std::endl;
+                    if(result.first){
+                        std::cout << "wakeonlan failed(" << result.first << ") with result: \n" << result.second << std::endl;
+                    }
+                } else {
+                    std::cout << "asgard:wol: unknown action " << action << std::endl;
                 }
+            } else {
+                std::cout << "asgard:wol: unknown command " << command << std::endl;
             }
         }
     }
