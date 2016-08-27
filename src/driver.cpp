@@ -9,10 +9,8 @@
 
 namespace {
 
-// Configuration (this should be in a configuration file)
-const char* server_socket_path = "/tmp/asgard_socket";
-const char* client_socket_path = "/tmp/asgard_wol_socket";
-const std::size_t delay_ms = 5000;
+// Configuration
+std::vector<asgard::KeyValue> config;
 
 asgard::driver_connector driver;
 
@@ -21,13 +19,10 @@ int source_id = -1;
 int wake_action_id = -1;
 
 void stop(){
-    std::cout << "asgard:system: stop the driver" << std::endl;
+    std::cout << "asgard:wol: stop the driver" << std::endl;
 
     asgard::unregister_action(driver, source_id, wake_action_id);
     asgard::unregister_source(driver, source_id);
-
-    // Unlink the client socket
-    unlink(client_socket_path);
 
     // Close the socket
     close(driver.socket_fd);
@@ -42,8 +37,11 @@ void terminate(int){
 } //End of anonymous namespace
 
 int main(){
+    // Load the configuration file
+    asgard::load_config(config);
+
     // Open the connection
-    if(!asgard::open_driver_connection(driver, client_socket_path, server_socket_path)){
+    if(!asgard::open_driver_connection(driver, asgard::get_string_value(config, "server_socket_addr").c_str(), asgard::get_int_value(config, "server_socket_port"))){
         return 1;
     }
 
@@ -57,8 +55,7 @@ int main(){
 
     // Listen for messages from the server
     while(true){
-        socklen_t address_length              = sizeof(struct sockaddr_un);
-        auto bytes_received                   = recvfrom(driver.socket_fd, driver.receive_buffer, asgard::buffer_size, 0, (struct sockaddr*)&driver.server_address, &address_length);
+        auto bytes_received                   = recv(driver.socket_fd, driver.receive_buffer, asgard::buffer_size, 0);
         driver.receive_buffer[bytes_received] = '\0';
 
         std::string message(driver.receive_buffer);
